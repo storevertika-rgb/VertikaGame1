@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>VÉRTIKA Runner — Santa Marta (Mejorado)</title>
+<style>
+  :root{
+    --bg:#081223; --brand:#fbbf24; --accent:#0b1724; --muted:#9ca3af; --white:#fff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#071428,#081223);color:var(--white);display:flex;flex-direction:column;align-items:center;padding:18px}
+  .container{width:100%;max-width:1100px}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .brand {display:flex;gap:12px;align-items:center}
+  .brand img{width:56px;height:56px;border-radius:8px;object-fit:cover;box-shadow:0 6px 18px rgba(0,0,0,0.6)}
+  h1{margin:0;color:var(--brand);letter-spacing:0.5px}
+  .card{background:#0f1724;border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+  .canvas-wrap{border-radius:12px;overflow:hidden;background:linear-gradient(180deg,#071428,#061223);display:flex;justify-content:center;align-items:center}
+  canvas{display:block;width:100%;height:auto;max-height:60vh}
+  .controls{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+  .controls .col{background:#0b1220;padding:12px;border-radius:10px}
+  .small{font-size:0.9rem;color:var(--muted)}
+  button{cursor:pointer;border:0;border-radius:8px;padding:8px 10px;font-weight:700}
+  .btn-primary{background:var(--brand);color:#071427}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white)}
+  footer{display:flex;justify-content:space-between;color:var(--muted);margin-top:12px}
+  /* store modal */
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55)}
+  .store{width:780px;max-width:94%;background:#071428;padding:18px;border-radius:12px}
+  .store-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:12px}
+  .store-item{background:#0f1724;padding:10px;border-radius:10px;display:flex;flex-direction:column;gap:8px}
+  .skin-preview{height:72px;border-radius:8px;background:#08141a;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--brand)}
+  /* mobile touch controls */
+  .touch-controls{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:14px;gap:12px}
+  .touch-controls button{width:68px;height:68px;border-radius:50%;font-size:18px}
+  @media(max-width:720px){ .controls{grid-template-columns:1fr}.touch-controls{display:flex} }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="brand">
+      <img id="logoImg" src="" alt="VÉRTIKA logo" />
+      <div>
+        <h1>VÉRTIKA Runner: Santa Marta</h1>
+        <div class="small">Hecho para VÉRTIKA — temática: costa, selva y ciudad.</div>
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div class="small">Controles: ESPACIO / ↑ / W • R reinicia • M silencio • C dash • T tienda</div>
+      <div class="small">Compatible móvil y PC</div>
+    </div>
+  </header>
+
+  <div class="card canvas-wrap" style="padding:10px">
+    <canvas id="gameCanvas" aria-label="VÉRTIKA Runner"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="col">
+      <h3 style="margin:0 0 8px 0">Controles</h3>
+      <div class="small">ESPACIO/↑/W o tocar la pantalla para saltar. C = dash (ráfaga). M = silencio. R = reiniciar.</div>
+      <div style="margin-top:8px"><button id="muteBtn" class="btn-ghost">Silenciar</button></div>
+    </div>
+
+    <div class="col">
+      <h3 style="margin:0 0 8px 0">Personaje</h3>
+      <select id="charSelect"></select>
+      <div style="margin-top:8px" class="small">Monedas: <strong id="coinCount">0</strong></div>
+    </div>
+
+    <div class="col">
+      <h3 style="margin:0 0 8px 0">Dificultad & Tienda</h3>
+      <select id="difficultySelect">
+        <option value="facil">Fácil</option>
+        <option value="medio" selected>Medio</option>
+        <option value="dificil">Difícil</option>
+        <option value="ultradificil">Ultra</option>
+        <option value="imposible">Imposible</option>
+      </select>
+      <div style="margin-top:8px"><button id="openStoreBtn" class="btn-primary">Abrir Tienda</button></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="small">VÉRTIKA Runner — Santa Marta</div>
+    <div id="hudRight" class="small">Puntaje: 0 • Mejor: 0</div>
+  </footer>
+</div>
+
+<!-- STORE modal -->
+<div id="storeModal" class="modal" style="display:none">
+  <div class="store">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 style="color:var(--brand);margin:0">Tienda VÉRTIKA</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="color:#fff">Monedas: <strong id="storeCoins">0</strong></div>
+        <button id="closeStoreBtn" class="btn-ghost">Cerrar</button>
+      </div>
+    </div>
+    <div class="store-grid" id="storeGrid"></div>
+    <div style="margin-top:10px;color:var(--muted)">La Gorra VÉRTIKA está desbloqueada gratis. Gana monedas y compra skins.</div>
+  </div>
+</div>
+
+<!-- Mobile touch quick buttons -->
+<div class="touch-controls" id="touchControls">
+  <button id="btnJump" class="btn-primary">↑</button>
+  <button id="btnDash" class="btn-ghost">Dash</button>
+  <button id="btnShop" class="btn-ghost">Tienda</button>
+</div>
+
+<script>
+/* ----------------------
+   Assets: external images used for skins/logo (hosted)
+   You can replace these URLs with your own assets (in assets/ folder) if you upload them.
+   ---------------------- */
+const ASSETS = {
+  logo: 'https://i.ibb.co/7Q2rYhW/vertika-sample-logo.png', // replace with your uploaded logo if you want
+  skins: {
+    gorra: 'https://i.ibb.co/9g6k7K1/cap-yellow.png',        // free sample hat image
+    tigre: 'https://i.ibb.co/1f1q6YF/skin-tiger.png',
+    leon:  'https://i.ibb.co/3Wn4h1Q/skin-leon.png',
+    caballo:'https://i.ibb.co/6b7yGv2/skin-horse.png',
+    mono:  'https://i.ibb.co/PZ6gq5N/skin-mono.png',
+    gorra2:'https://i.ibb.co/p4sYcQ2/cap-gold.png'
+  }
+};
+
+/* ----------------------
+   Configuration & state
+   ---------------------- */
+const CONFIG = {
+  BASE_WIDTH: 900, BASE_HEIGHT: 360,
+  BASE_SPEED: 5, GRAVITY: 0.9, JUMP_FORCE: 14,
+  OBSTACLE_INTERVAL: [900,1500], SPEED_STEP:0.6, SPEED_INCREASE_EVERY:10,
+  POWERUP_CHANCE: 0.12, POWERUP_DURATION: 6000
+};
+
+const CHARACTERS = [
+  {id:'gorra', name:'Gorra VÉRTIKA (Gratis)', size:36, price:0, img:ASSETS.skins.gorra},
+  {id:'tigre', name:'Tigre Samario', size:44, price:250, img:ASSETS.skins.tigre},
+  {id:'leon', name:'León Marino', size:42, price:300, img:ASSETS.skins.leon},
+  {id:'caballo', name:'Caballo', size:40, price:220, img:ASSETS.skins.caballo},
+  {id:'mono', name:'Mono', size:38, price:180, img:ASSETS.skins.mono},
+  {id:'gorra2', name:'Gorra Dorada', size:36, price:120, img:ASSETS.skins.gorra2}
+];
+
+const STORE_ITEMS = CHARACTERS.filter(c=>c.id!=='gorra').map(c=>({id:c.id,label:c.name,price:c.price}));
+
+let state = {
+  score:0,
+  best: Number(localStorage.getItem('vertikaBest')||0),
+  coins: Number(localStorage.getItem('vertikaCoins')||0),
+  character: localStorage.getItem('vertikaChar')||'gorra',
+  inventory: JSON.parse(localStorage.getItem('vertikaInv') || '{"gorra":true}'),
+  difficulty: localStorage.getItem('vertikaDiff') || 'medio'
+};
+
+/* ----------------------
+   Audio : WebAudio tones for SFX (no files required)
+   ---------------------- */
+const audioCtx = (typeof AudioContext !== 'undefined') ? new AudioContext() : null;
+function playTone(freq=440, type='sine', time=0.08, gain=0.15){
+  if(!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.value = gain;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + time);
+}
+function playJump(){ playTone(660,'sine',0.08,0.09); }
+function playCoin(){ playTone(880,'triangle',0.10,0.12); }
+function playHit(){ playTone(180,'square',0.14,0.18); }
+function playPower(){ playTone(520,'sine',0.12,0.12); }
+
+/* ----------------------
+   Canvas & world
+   ---------------------- */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const world = { w:CONFIG.BASE_WIDTH, h:CONFIG.BASE_HEIGHT, groundY: 300, speed:CONFIG.BASE_SPEED, obstacles:[], powerups:[], particles:[], timeToNextObs:1000 };
+
+const player = { x:120, y:0, vy:0, size:36, onGround:true, power:null };
+
+let started=false, gameOver=false, raf=0, muted=false;
+
+/* UI elements */
+const coinCountEl = document.getElementById('coinCount');
+const hudRight = document.getElementById('hudRight');
+const charSelect = document.getElementById('charSelect');
+const difficultySelect = document.getElementById('difficultySelect');
+const muteBtn = document.getElementById('muteBtn');
+const storeModal = document.getElementById('storeModal');
+const storeGrid = document.getElementById('storeGrid');
+const openStoreBtn = document.getElementById('openStoreBtn');
+const closeStoreBtn = document.getElementById('closeStoreBtn');
+const storeCoins = document.getElementById('storeCoins');
+const logoImg = document.getElementById('logoImg');
+
+/* load logo */
+logoImg.src = ASSETS.logo;
+
+/* populate char select */
+CHARACTERS.forEach(c=>{
+  const opt = document.createElement('option'); opt.value=c.id; opt.textContent = `${c.name}${c.price?(' - '+c.price+'¢'):''}`; charSelect.appendChild(opt);
+});
+charSelect.value = state.character;
+coinCountEl.textContent = state.coins;
+storeCoins.textContent = state.coins;
+
+/* skin images cache */
+const skinImages = {};
+CHARACTERS.forEach(s=>{
+  const i = new Image(); i.src = s.img; skinImages[s.id] = i;
+});
+
+/* resize canvas responsively */
+function resize(){
+  const parent = document.querySelector('.canvas-wrap');
+  const w = Math.min(CONFIG.BASE_WIDTH, parent.clientWidth);
+  const h = Math.round(w * (CONFIG.BASE_HEIGHT / CONFIG.BASE_WIDTH));
+  const dpr = Math.max(1, Math.min(window.devicePixelRatio||1,2));
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.width = Math.floor(w*dpr); canvas.height = Math.floor(h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  world.w = w; world.h = h; world.groundY = Math.round(h * 0.82);
+  player.size = CHARACTERS.find(c=>c.id===state.character)?.size || 36;
+  player.y = world.groundY - player.size;
+  drawSplash();
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ----------------------
+   Controls & input
+   ---------------------- */
+function startGame(){ 
+  started=true; gameOver=false; state.score=0;
+  world.speed = CONFIG.BASE_SPEED; world.obstacles=[]; world.powerups=[]; world.particles=[];
+  world.timeToNextObs = rand(...CONFIG.OBSTACLE_INTERVAL);
+  player.vy=0; player.onGround=true; player.y = world.groundY - player.size;
+  cancelAnimationFrame(raf);
+  // resume audio context on first user gesture for browsers that require it
+  try{ if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }catch(e){}
+  loop();
+}
+function restart(){ startGame(); }
+function jump(){ if(!started) startGame(); if(player.onGround){ player.vy = -CONFIG.JUMP_FORCE * (player.power==='lowgravity'?0.78:1); player.onGround=false; spawnDust(player.x + player.size*0.3, world.groundY); if(!muted) playJump(); } }
+function dash(){ const old = world.speed; world.speed += 6; setTimeout(()=> world.speed = Math.max(CONFIG.BASE_SPEED, old), 180); }
+
+/* keyboard / pointer */
+window.addEventListener('keydown', e=>{
+  if(e.repeat) return;
+  if(['Space','ArrowUp','KeyW'].includes(e.code)){ e.preventDefault(); jump(); }
+  else if(e.code === 'KeyR'){ if(gameOver) restart(); }
+  else if(e.code === 'KeyM'){ toggleMute(); }
+  else if(e.code === 'KeyC'){ dash(); }
+  else if(e.code === 'KeyT'){ openStoreBtn.click(); }
+});
+canvas.addEventListener('pointerdown', ()=> jump());
+
+/* mobile touch controls */
+document.getElementById('btnJump').addEventListener('touchstart', (e)=>{ e.preventDefault(); jump(); });
+document.getElementById('btnDash').addEventListener('touchstart', (e)=>{ e.preventDefault(); dash(); });
+document.getElementById('btnShop').addEventListener('touchstart', (e)=>{ e.preventDefault(); openStoreBtn.click(); });
+
+/* ----------------------
+   Spawning, collisions, physics
+   ---------------------- */
+function spawnDust(x,y){ for(let i=0;i<8;i++) world.particles.push({ x,y, vx:rand(-1.5,1.5), vy:rand(-2.5,-0.5), life:rand(200,600), size:rand(2,4) }); }
+
+function spawnObstacleOrPowerup(){
+  if(Math.random() < CONFIG.POWERUP_CHANCE){
+    const kind = Math.random()<0.5 ? 'coin' : (Math.random()<0.5 ? 'shield' : 'lowgravity');
+    world.powerups.push({ x: world.w + 80, y: world.groundY - 80, w:28, h:28, kind });
+    return;
+  }
+  const size = rand(24,52);
+  const type = Math.random() < 0.6 ? 'stall' : 'rock';
+  world.obstacles.push({ x: world.w + size, y: world.groundY - size, w:size, h:size, type });
+}
+
+function rectsOverlap(a,b){ return a.x < b.x + b.w && a.x + a.size > b.x && a.y < b.y + b.h && a.y + a.size > b.y; }
+
+function applyPowerup(kind){
+  player.power = kind; player.powerUntil = performance.now() + CONFIG.POWERUP_DURATION;
+  if(kind === 'coin'){ state.coins += 15; persistCoins(); if(!muted) playCoin(); }
+  if(!muted && kind !== 'coin') playPower();
+  setTimeout(()=>{ if(player.power === kind) player.power = null; }, CONFIG.POWERUP_DURATION);
+}
+
+function persistCoins(){ localStorage.setItem('vertikaCoins', String(state.coins)); coinCountEl.textContent = state.coins; storeCoins.textContent = state.coins; }
+
+/* ----------------------
+   Draw helpers (Santa Marta vibe)
+   ---------------------- */
+function drawBackground(){
+  const g = ctx.createLinearGradient(0,0,0,world.h); g.addColorStop(0,'#081223'); g.addColorStop(1,'#0e1a33'); ctx.fillStyle = g; ctx.fillRect(0,0,world.w,world.h);
+  ctx.globalAlpha = 0.25; ctx.fillStyle = '#073b5a'; ctx.fillRect(0,world.h*0.6,world.w,world.h*0.25); ctx.globalAlpha=1;
+  ctx.save(); ctx.globalAlpha=0.18; ctx.fillStyle = '#0b1724'; ctx.beginPath(); ctx.moveTo(0,world.h*0.6); for(let x=-200;x<world.w+200;x+=200){ ctx.lineTo(x+100, world.h*0.45 - (Math.sin((x+(performance.now()/10))*0.01)*12)); ctx.lineTo(x+200, world.h*0.6); } ctx.closePath(); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.globalAlpha=0.12; ctx.fillStyle='#064e3b'; ctx.fillRect(0, world.h*0.55, world.w, world.h*0.18); ctx.restore();
+  ctx.save(); ctx.globalAlpha=0.9; for(let i=0;i<6;i++){ const w = 90; const x = (i*(world.w/6)) + ((performance.now()/200)%40); ctx.fillStyle='#0f1724'; ctx.fillRect(x, world.groundY - 40, w, 40); ctx.fillStyle='#f97316'; ctx.fillRect(x+6, world.groundY - 28, 60, 16);} ctx.restore();
+}
+
+function drawStall(o){ ctx.fillStyle='#f97316'; ctx.fillRect(o.x,o.y,o.w,o.h); ctx.fillStyle='#fff'; ctx.font='600 12px sans-serif'; ctx.fillText('Tienda', o.x+6, o.y+o.h/2+4); }
+function drawRock(o){ ctx.fillStyle='#374151'; ctx.fillRect(o.x,o.y,o.w,o.h); }
+function drawPowerup(pp){ ctx.fillStyle = pp.kind==='coin' ? CONFIG.BRAND : (pp.kind==='shield' ? '#60a5fa' : '#a78bfa'); ctx.beginPath(); ctx.arc(pp.x+pp.w/2, pp.y+pp.h/2, pp.w/2, 0, Math.PI*2); ctx.fill(); ctx.fillStyle='#111827'; ctx.font='600 12px sans-serif'; ctx.fillText(pp.kind.charAt(0).toUpperCase(), pp.x+pp.w/2-4, pp.y+pp.h/2+4); }
+
+function drawPlayer(){
+  const skin = skinImages[state.character] || skinImages['gorra'];
+  // draw shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(player.x+6, player.y+player.size-6, player.size-12, 8);
+  // draw image if loaded
+  try{
+    ctx.drawImage(skin, player.x, player.y, player.size, player.size);
+  }catch(e){
+    // fallback rectangle
+    ctx.fillStyle = '#111827'; ctx.fillRect(player.x, player.y, player.size, player.size);
+    ctx.strokeStyle = CONFIG.BRAND; ctx.lineWidth=3; ctx.strokeRect(player.x, player.y, player.size, player.size);
+    ctx.fillStyle = CONFIG.BRAND; ctx.font='700 10px sans-serif'; ctx.fillText('V', player.x + player.size*0.25, player.y + player.size*0.6);
+  }
+}
+
+/* HUD & splash */
+function drawHUD(){
+  const img = new Image(); img.src = ASSETS.logo; img.onload = ()=>{ try{ ctx.drawImage(img, 12, 4, 36, 36); }catch(e){} };
+  ctx.fillStyle = CONFIG.BRAND; ctx.font='600 16px sans-serif'; ctx.fillText('VÉRTIKA', 56, 26);
+  ctx.fillStyle = '#fff'; ctx.textAlign='right'; ctx.fillText(`Puntaje: ${state.score}`, world.w-16, 26);
+  ctx.fillText(`Mejor: ${state.best}`, world.w-16, 48);
+  ctx.fillText(`Monedas: ${state.coins}`, world.w-16, 70);
+  ctx.textAlign='left';
+}
+function drawSplash(){
+  ctx.fillStyle = CONFIG.BG; ctx.fillRect(0,0,world.w,world.h);
+  drawBackground();
+  ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='800 26px sans-serif';
+  ctx.fillText('VÉRTIKA Runner: Santa Marta', world.w/2, world.h*0.26);
+  const img = new Image(); img.src = ASSETS.logo; img.onload = ()=>{ ctx.drawImage(img, world.w/2 - 56, world.h*0.32 - 56, 112, 112); };
+  ctx.font='400 14px sans-serif'; ctx.fillStyle='#cbd5e1';
+  ctx.fillText('Toca o presiona ESPACIO para saltar — M para silenciar — Abre tienda con la UI', world.w/2, world.h*0.46);
+  ctx.fillStyle = CONFIG.BRAND; ctx.fillRect(world.w/2 - 90, world.h*0.52, 180, 44);
+  ctx.fillStyle = CONFIG.ACCENT; ctx.font='700 16px sans-serif'; ctx.fillText('¡JUGAR!', world.w/2, world.h*0.52+28);
+}
+
+/* ----------------------
+   Main loop
+   ---------------------- */
+function loop(ts=0){
+  const dt = 16.6667;
+  ctx.fillStyle = CONFIG.BG; ctx.fillRect(0,0,world.w,world.h);
+  drawBackground();
+  ctx.strokeStyle = CONFIG.ACCENT; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, world.groundY + 0.5); ctx.lineTo(world.w, world.groundY + 0.5); ctx.stroke();
+
+  world.timeToNextObs -= dt;
+  if(world.timeToNextObs <= 0){ spawnObstacleOrPowerup(); world.timeToNextObs = rand(...CONFIG.OBSTACLE_INTERVAL); }
+
+  // obstacles
+  for(let i=world.obstacles.length-1;i>=0;i--){
+    const o = world.obstacles[i]; o.x -= world.speed;
+    if(o.type === 'stall') drawStall(o); else drawRock(o);
+    if(!o.scored && o.x + o.w < player.x){ o.scored = true; state.score += 1; if(state.score % CONFIG.SPEED_INCREASE_EVERY === 0) world.speed += CONFIG.SPEED_STEP; state.coins += 1; persistCoins(); }
+    if(o.x + o.w < -80) world.obstacles.splice(i,1);
+  }
+
+  // powerups
+  for(let i=world.powerups.length-1;i>=0;i--){
+    const p = world.powerups[i]; p.x -= world.speed;
+    drawPowerup(p);
+    if(rectsOverlap({x:player.x,y:player.y,size:player.size},{x:p.x,y:p.y,w:p.w,h:p.h})){
+      applyPowerup(p.kind);
+      world.powerups.splice(i,1);
+    }
+    if(p.x + p.w < -80) world.powerups.splice(i,1);
+  }
+
+  // player physics
+  player.vy += CONFIG.GRAVITY * (player.power === 'heavy' ? 1.2 : 1);
+  player.y += player.vy;
+  if(player.y + player.size >= world.groundY){ player.y = world.groundY - player.size; player.vy = 0; if(!player.onGround) spawnDust(player.x + player.size*0.3, world.groundY); player.onGround = true; }
+
+  drawPlayer();
+
+  // particles
+  for(let i=world.particles.length-1;i>=0;i--){
+    const p = world.particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life -= 16;
+    ctx.globalAlpha = Math.max(0, p.life / 700); ctx.fillStyle = CONFIG.BRAND; ctx.fillRect(p.x, p.y, p.size, p.size); ctx.globalAlpha = 1;
+    if(p.life <= 0) world.particles.splice(i,1);
+  }
+
+  // collisions
+  for(const o of world.obstacles){
+    if(rectsOverlap({x:player.x,y:player.y,size:player.size},{x:o.x,y:o.y,w:o.w,h:o.h})){
+      if(player.power === 'shield'){ player.power = null; } else { endGame(); return; }
+    }
+  }
+
+  drawHUD();
+  document.getElementById('hudRight').textContent = `Puntaje: ${state.score} • Mejor: ${state.best}`;
+  coinCountEl.textContent = state.coins;
+
+  raf = requestAnimationFrame(loop);
+}
+
+/* ----------------------
+   End / Shop / Equip
+   ---------------------- */
+function endGame(){
+  gameOver = true; cancelAnimationFrame(raf); state.best = Math.max(state.best, state.score); localStorage.setItem('vertikaBest', String(state.best));
+  ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,world.w,world.h);
+  ctx.textAlign='center'; ctx.fillStyle=CONFIG.BRAND; ctx.font='800 28px sans-serif'; ctx.fillText('¡GAME OVER!', world.w/2, world.h*0.35);
+  ctx.fillStyle='#fff'; ctx.font='600 18px sans-serif'; ctx.fillText(`Puntaje: ${state.score}  |  Mejor: ${state.best}`, world.w/2, world.h*0.42);
+  ctx.fillStyle = CONFIG.BRAND; ctx.fillRect(world.w/2 - 110, world.h*0.52, 220, 46);
+  ctx.fillStyle = CONFIG.ACCENT; ctx.font='700 16px sans-serif'; ctx.fillText('Reintentar (R / click)', world.w/2, world.h*0.52+28);
+  canvas.addEventListener('pointerdown', ()=>{ if(gameOver){ restart(); gameOver=false; } }, { once:true });
+  if(!muted) playHit();
+}
+
+/* store rendering and actions */
+function renderStore(){
+  storeGrid.innerHTML = '';
+  STORE_ITEMS.forEach(item=>{
+    const el = document.createElement('div'); el.className='store-item';
+    el.innerHTML = `<div class="skin-preview"><img src="${CHARACTERS.find(x=>x.id===item.id).img}" style="max-width:100%;max-height:100%"></div>
+      <div style="color:#cbd5e1">${item.label}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center"><div style="color:var(--brand)">${item.price}¢</div><div id="btn-${item.id}"></div></div>`;
+    storeGrid.appendChild(el);
+    const btnWrap = el.querySelector(`#btn-${item.id}`);
+    if(state.inventory[item.id]){ const b = document.createElement('button'); b.textContent='Equipar'; b.className='btn-primary'; b.onclick = ()=>equip(item.id); btnWrap.appendChild(b); }
+    else { const b = document.createElement('button'); b.textContent='Comprar'; b.style.background='#10b981'; b.style.color='#fff'; b.onclick = ()=>buyItem(item); btnWrap.appendChild(b); }
+  });
+}
+
+function buyItem(item){
+  if(state.inventory[item.id]) return;
+  if(state.coins < item.price) return alert('No tienes suficientes monedas');
+  state.coins -= item.price; persistCoins();
+  state.inventory[item.id] = true; localStorage.setItem('vertikaInv', JSON.stringify(state.inventory));
+  renderStore(); alert('Compraste: ' + item.label);
+}
+function equip(id){
+  if(!state.inventory[id] && id !== 'gorra') return alert('No comprado');
+  state.character = id; localStorage.setItem('vertikaChar', id); player.size = CHARACTERS.find(c=>c.id===id)?.size || 36; alert('Equipado: ' + id);
+}
+
+/* ----------------------
+   UI bindings
+   ---------------------- */
+muteBtn.addEventListener('click', toggleMute);
+function toggleMute(){ muted = !muted; muteBtn.textContent = muted ? 'Desmutear' : 'Silenciar'; if(!muted) playTone(220,'sine',0.04,0.02); }
+
+openStoreBtn.addEventListener('click', ()=>{ renderStore(); storeModal.style.display='flex'; });
+closeStoreBtn.addEventListener('click', ()=>{ storeModal.style.display='none'; });
+
+charSelect.addEventListener('change', e=>{ const id=e.target.value; if(state.inventory[id]||id==='gorra'){ state.character=id; localStorage.setItem('vertikaChar', id); player.size = CHARACTERS.find(c=>c.id===id).size; } else { alert('Compra primero en la tienda'); charSelect.value = state.character; } });
+
+difficultySelect.addEventListener('change', e=>{ state.difficulty = e.target.value; localStorage.setItem('vertikaDiff', state.difficulty); const map = { facil:{speed:4, spawn:[1200,1800], powerup:0.2}, medio:{speed:5, spawn:[900,1500], powerup:0.12}, dificil:{speed:6.5, spawn:[700,1200], powerup:0.08}, ultradificil:{speed:8, spawn:[600,1000], powerup:0.05}, imposible:{speed:11, spawn:[450,900], powerup:0.03}}; const d = map[state.difficulty]||map.medio; CONFIG.BASE_SPEED = d.speed; CONFIG.OBSTACLE_INTERVAL = d.spawn; CONFIG.POWERUP_CHANCE = d.powerup; });
+
+/* ----------------------
+   Init & helpers
+   ---------------------- */
+function init(){
+  coinCountEl.textContent = state.coins; storeCoins.textContent = state.coins; charSelect.value = state.character; difficultySelect.value = state.difficulty;
+  renderStore(); drawSplash();
+  canvas.addEventListener('click', ()=>{ if(!started) startGame(); });
+  // quick keyboard: T opens store
+  window.addEventListener('keydown', e=>{ if(e.code==='KeyT'){ openStoreBtn.click(); }});
+  // touch controls visibility handled by CSS
+}
+init();
+
+/* util */
+function rand(a,b){ return Math.random()*(b-a)+a; }
+
+</script>
+</body>
+</html>
