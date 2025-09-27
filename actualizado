@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>VÉRTIKA Runner — Santa Marta (Full)</title>
+<style>
+  :root{
+    --bg:#071428; --brand:#fbbf24; --muted:#9ca3af; --card:#0f1724; --accent:#0b1724;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;background:linear-gradient(180deg,#071428,#041225);color:#fff;display:flex;flex-direction:column;align-items:center;padding:14px}
+  .app{width:100%;max-width:1100px}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .brand{display:flex;gap:12px;align-items:center}
+  .brand img{width:56px;height:56px;border-radius:8px;object-fit:cover}
+  h1{margin:0;color:var(--brand)}
+  .card{background:var(--card);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+  .canvas-wrap{border-radius:12px;overflow:hidden;background:#021424;display:flex;justify-content:center;align-items:center}
+  canvas{display:block;width:100%;height:auto}
+  .controls{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+  .col{background:#071427;padding:12px;border-radius:8px}
+  .small{font-size:0.9rem;color:var(--muted)}
+  button{cursor:pointer;border:0;border-radius:8px;padding:8px 12px;font-weight:700}
+  .btn-primary{background:var(--brand);color:#071427}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#fff}
+  footer{display:flex;justify-content:space-between;color:var(--muted);margin-top:12px}
+  /* modal */
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6)}
+  .panel{width:840px;max-width:94%;background:#071428;border-radius:12px;padding:16px}
+  .grid-shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+  .shop-item{background:#0f1724;padding:10px;border-radius:8px;display:flex;flex-direction:column;gap:6px;align-items:center}
+  .skin-preview{width:100%;height:80px;background:#08141a;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  label{display:block;margin-top:8px}
+  input[type="text"],input[type="password"],select{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.05);background:#071428;color:#fff}
+  @media(max-width:720px){.controls{grid-template-columns:1fr}.brand img{width:48px;height:48px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <img id="logoImg" src="" alt="VÉRTIKA logo" onerror="this.style.display='none'"/>
+      <div>
+        <h1>VÉRTIKA Runner — Santa Marta</h1>
+        <div class="small">5 niveles • Misiones • Tienda • Perfiles • Modo Infinito</div>
+      </div>
+    </div>
+
+    <div style="text-align:right">
+      <div class="small">Controles: ESPACIO / ↑ / W (saltar) • C (dash) • M (mudo) • R (reiniciar)</div>
+      <div style="margin-top:6px"><button id="openAccountBtn" class="btn-ghost">Cuenta</button></div>
+    </div>
+  </header>
+
+  <div class="card canvas-wrap" style="padding:10px">
+    <canvas id="gameCanvas" width="900" height="360" aria-label="Vértika Runner"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="col">
+      <h3 style="margin:0 0 8px 0">Juego</h3>
+      <div class="small">Nivel: <strong id="levelLabel">1</strong></div>
+      <div style="margin-top:8px">
+        <button id="btnStart" class="btn-primary">Iniciar</button>
+        <button id="btnInfinite" class="btn-ghost">Modo Infinito</button>
+      </div>
+      <div style="margin-top:8px" class="small">Misión: <span id="missionText">—</span></div>
+    </div>
+
+    <div class="col">
+      <h3 style="margin:0 0 8px 0">Personaje & Monedas</h3>
+      <select id="charSelect"></select>
+      <div style="margin-top:8px" class="small">Monedas: <strong id="coinCount">0</strong></div>
+      <div style="margin-top:8px"><button id="openStoreBtn" class="btn-primary">Abrir Tienda</button></div>
+    </div>
+
+    <div class="col">
+      <h3 style="margin:0 0 8px 0">Configuración</h3>
+      <label> Dificultad
+        <select id="difficultySelect">
+          <option value="facil">Fácil</option>
+          <option value="medio" selected>Medio</option>
+          <option value="dificil">Difícil</option>
+          <option value="ultra">Ultra</option>
+          <option value="imposible">Imposible</option>
+        </select>
+      </label>
+      <div style="margin-top:8px">
+        <button id="muteBtn" class="btn-ghost">Silenciar</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="small">VÉRTIKA Runner — Santa Marta</div>
+    <div id="hudRight" class="small">Puntaje: 0 • Mejor: 0</div>
+  </footer>
+</div>
+
+<!-- STORE -->
+<div id="storeModal" class="modal" style="display:none">
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0;color:var(--brand)">Tienda</h2>
+      <div><strong>Monedas: <span id="storeCoins">0</span></strong> <button id="closeStoreBtn" class="btn-ghost">Cerrar</button></div>
+    </div>
+    <div class="grid-shop" id="storeGrid" style="margin-top:10px"></div>
+    <div style="margin-top:8px;color:var(--muted)">Puedes comprar skins (cambian la imagen) y accesorios (sombrero, camiseta, mochila) que se dibujan encima de la skin.</div>
+  </div>
+</div>
+
+<!-- ACCOUNT -->
+<div id="accountModal" class="modal" style="display:none">
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 style="color:var(--brand);margin:0">Cuenta</h2>
+      <div><button id="closeAccountBtn" class="btn-ghost">Cerrar</button></div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px">
+        <h4 style="margin:6px 0">Iniciar sesión</h4>
+        <label>Usuario <input id="loginUser" type="text"/></label>
+        <label>Contraseña <input id="loginPass" type="password"/></label>
+        <div style="margin-top:8px"><button id="btnLogin" class="btn-primary">Iniciar</button></div>
+      </div>
+
+      <div style="flex:1;min-width:220px">
+        <h4 style="margin:6px 0">Crear cuenta</h4>
+        <label>Usuario <input id="regUser" type="text"/></label>
+        <label>Contraseña <input id="regPass" type="password"/></label>
+        <div style="margin-top:8px"><button id="btnRegister" class="btn-primary">Registrar</button></div>
+      </div>
+
+      <div style="flex:1;min-width:220px">
+        <h4 style="margin:6px 0">Export / Import</h4>
+        <div class="small">Exporta tu cuenta a un archivo para moverlo a otro dispositivo.</div>
+        <div style="margin-top:6px"><button id="btnExport" class="btn-ghost">Exportar perfil</button></div>
+        <div style="margin-top:8px"><input id="importFile" type="file" accept=".json"/></div>
+      </div>
+    </div>
+    <div style="margin-top:12px" class="small">Nota: las cuentas se guardan localmente en tu navegador (localStorage). Para guardar en la nube necesitaremos integrar un backend o Firebase.</div>
+  </div>
+</div>
+
+<script>
+/* -------------------------
+   ASSETS (fondos y skins)
+   Usamos las URLs que me diste para fondos.
+   Si después prefieres subir imágenes a tu repo, reemplaza las rutas por 'images/fondo1.jpg' etc.
+   ------------------------- */
+const ASSETS = {
+  levels: [
+    "https://i.ytimg.com/vi/EERhKD6-mP8/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGEggWShlMA8=&rs=AOn4CLCzYU4w39YsUxKE9ws8t3Xw_6fzLg",
+    "https://tse3.mm.bing.net/th/id/OIP.93i6Y5bRJlCq6uYrWlYrPgHaE8?pid=Api&P=0&h=180",
+    "https://media-cdn.tripadvisor.com/media/photo-s/0f/c5/1e/2e/marina-santa-marta.jpg",
+    "https://i.ytimg.com/vi/M-z3GqiqDRU/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgZShlMA8=&rs=AOn4CLBQAQGJ0IoiwXJ-XBevuw3tRgXbbA",
+    "https://codigoprensa.com/wp-content/uploads/2021/07/Agregar-un-subtitulo-47-1170x658.jpg"
+  ],
+  // skins (ejemplos públicos)
+  skins: {
+    gorra: 'https://i.ibb.co/9g6k7K1/cap-yellow.png',
+    tigre: 'https://i.ibb.co/1f1q6YF/skin-tiger.png',
+    leon: 'https://i.ibb.co/3Wn4h1Q/skin-leon.png',
+    caballo: 'https://i.ibb.co/6b7yGv2/skin-horse.png',
+    mono: 'https://i.ibb.co/PZ6gq5N/skin-mono.png'
+  },
+  // obstacles are drawn; you can replace with image URLs if you have sprites
+  logo: ''
+};
+
+/* -------------------------
+   CONFIG y estado
+   ------------------------- */
+const CONFIG = {
+  baseWidth:900, baseHeight:360, gravity:0.9, jumpForce:13, baseSpeed:5,
+  obstacleInterval:[900,1500], speedIncreaseEvery:10, speedStep:0.6, powerupChance:0.12
+};
+
+const MISSIONS = [
+  {name:'Bienvenido', desc:'Saltar 20 vallas', target:20, reward:10},
+  {name:'Guardianes', desc:'Esquivar 15 obstáculos', target:15, reward:20},
+  {name:'Bahía', desc:'Saltar 30 obstáculos', target:30, reward:30},
+  {name:'Marina', desc:'Esquivar 25 obstáculos', target:25, reward:50},
+  {name:'Camellón', desc:'Saltar 50 vallas (Imposible)', target:50, reward:100}
+];
+
+let state = {
+  score:0,
+  best: Number(localStorage.getItem('vertikaBest')||0),
+  coins: Number(localStorage.getItem('vertikaCoins')||0),
+  inventory: JSON.parse(localStorage.getItem('vertikaInv') || '{"gorra":true}'),
+  character: localStorage.getItem('vertikaChar') || 'gorra',
+  difficulty: localStorage.getItem('vertikaDiff') || 'medio',
+  user: JSON.parse(localStorage.getItem('vertikaUser') || 'null')
+};
+
+/* -------------------------
+   CANVAS y mundo
+   ------------------------- */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const world = { w: CONFIG.baseWidth, h: CONFIG.baseHeight, groundY: 280, speed: CONFIG.baseSpeed, obstacles: [], powerups: [], particles: [], timeToNextObs: 1000 };
+
+const player = { x:120, y:0, vy:0, size:36, onGround:true, power:null, equipped: {hat:null, shirt:null, bag:null} };
+
+let started=false, gameOver=false, levelIndex=0, infiniteMode=false, raf=0, muted=false;
+let missionProgress = 0;
+
+/* UI references */
+const coinCountEl = document.getElementById('coinCount');
+const hudRightEl = document.getElementById('hudRight');
+const charSelect = document.getElementById('charSelect');
+const difficultySelect = document.getElementById('difficultySelect');
+const btnStart = document.getElementById('btnStart');
+const btnInfinite = document.getElementById('btnInfinite');
+const openStoreBtn = document.getElementById('openStoreBtn');
+const storeModal = document.getElementById('storeModal');
+const storeGrid = document.getElementById('storeGrid');
+const storeCoins = document.getElementById('storeCoins');
+const btnOpenAccount = document.getElementById('openAccountBtn');
+const accountModal = document.getElementById('accountModal');
+const btnExport = document.getElementById('btnExport');
+const inputImport = document.getElementById('importFile');
+const missionText = document.getElementById('missionText');
+const levelLabel = document.getElementById('levelLabel');
+const muteBtn = document.getElementById('muteBtn');
+
+/* preload skin images */
+const skinCache = {};
+Object.keys(ASSETS.skins).forEach(k=>{ const img=new Image(); img.src=ASSETS.skins[k]; skinCache[k]=img; });
+
+/* populate char select */
+Object.keys(ASSETS.skins).forEach(key=>{
+  const opt=document.createElement('option'); opt.value=key; opt.textContent = key;
+  charSelect.appendChild(opt);
+});
+charSelect.value = state.character;
+
+/* responsive canvas */
+function resize(){
+  const parent = document.querySelector('.canvas-wrap');
+  const w = Math.min(CONFIG.baseWidth, parent.clientWidth);
+  const h = Math.round(w * (CONFIG.baseHeight / CONFIG.baseWidth));
+  const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.width = Math.floor(w * dpr); canvas.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  world.w = w; world.h = h; world.groundY = Math.round(h * 0.78);
+  player.size = CHAR_SIZE_FOR(state.character);
+  player.y = world.groundY - player.size;
+  drawSplash();
+}
+window.addEventListener('resize', resize);
+resize();
+
+function CHAR_SIZE_FOR(charId){
+  const map = {'gorra':36,'tigre':44,'leon':42,'caballo':40,'mono':38};
+  return map[charId] || 36;
+}
+
+/* -------------------------
+   Controls
+   ------------------------- */
+btnStart.addEventListener('click', ()=> startLevel(levelIndex));
+btnInfinite.addEventListener('click', ()=>{ infiniteMode = !infiniteMode; btnInfinite.textContent = infiniteMode ? 'Infinito: ON' : 'Modo Infinito'; startLevel(levelIndex); });
+
+window.addEventListener('keydown', e=>{
+  if(e.repeat) return;
+  if(['Space','ArrowUp','KeyW'].includes(e.code)){ e.preventDefault(); jump(); }
+  else if(e.code === 'KeyC'){ dash(); }
+  else if(e.code === 'KeyM'){ toggleMute(); }
+  else if(e.code === 'KeyR'){ restart(); }
+  else if(e.code === 'KeyT'){ openStoreBtn.click(); }
+});
+canvas.addEventListener('pointerdown', ()=> jump());
+
+function jump(){
+  if(!started) startLevel(levelIndex);
+  if(player.onGround){
+    player.vy = -CONFIG.jumpForce * (player.power === 'lowgravity' ? 0.78 : 1);
+    player.onGround = false; spawnDust(player.x + player.size*0.3, world.groundY);
+    if(!muted) playTone(660,0.08);
+  }
+}
+function dash(){ const old = world.speed; world.speed += 6; setTimeout(()=> world.speed = Math.max(CONFIG.baseSpeed, old), 180); }
+function restart(){ startLevel(levelIndex); }
+
+/* -------------------------
+   Spawning & gameplay
+   ------------------------- */
+function spawnDust(x,y){ for(let i=0;i<8;i++) world.particles.push({ x, y, vx:rand(-1.5,1.5), vy:rand(-2.5,-0.5), life:rand(200,600), size:rand(2,4) }); }
+
+function spawnObstacleOrPowerup(){
+  if(Math.random() < CONFIG.powerupChance){
+    const kind = Math.random() < 0.6 ? 'coin' : (Math.random()<0.5?'shield':'lowgravity');
+    world.powerups.push({ x: world.w + 80, y: world.groundY - 60, w:28, h:28, kind });
+    return;
+  }
+  const typesByLevel = [
+    ['valla','palmera'],
+    ['valla','kiosko'],
+    ['valla','kiosko','palmera'],
+    ['kiosko','palmera'],
+    ['kiosko','palmera','valla']
+  ];
+  const choices = typesByLevel[levelIndex] || ['valla','kiosko'];
+  const type = choices[Math.floor(Math.random()*choices.length)];
+  const sizeMap = {valla:48,palmera:72,kiosko:96};
+  const s = sizeMap[type] || 56;
+  world.obstacles.push({ x: world.w + s, y: world.groundY - s, w: s, h: s, type });
+}
+
+function rectsOverlap(a,b){ return a.x < b.x + b.w && a.x + a.size > b.x && a.y < b.y + b.h && a.y + a.size > b.y; }
+
+function applyPowerup(kind){
+  player.power = kind; player.powerUntil = performance.now() + 6000;
+  if(kind==='coin'){ state.coins += 20; persistCoins(); }
+  if(!muted) playTone(880,0.09);
+  setTimeout(()=>{ if(player.power === kind) player.power = null; }, 6000);
+}
+
+function persistCoins(){ localStorage.setItem('vertikaCoins', String(state.coins)); document.getElementById('coinCount').textContent = state.coins; document.getElementById('storeCoins').textContent = state.coins; }
+
+/* -------------------------
+   Drawing helpers
+   ------------------------- */
+function drawBackground(){
+  const bg = new Image();
+  bg.crossOrigin = "anonymous";
+  bg.src = ASSETS.levels[levelIndex];
+  bg.onload = ()=>{ try{ ctx.drawImage(bg,0,0,world.w,world.h); }catch(e){} };
+  // fallback overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0,0,world.w,world.h);
+}
+
+function drawObstacle(o){
+  // try draw image if you add obstacle images; fallback to colored rects
+  ctx.fillStyle = (o.type === 'valla' ? '#f97316' : (o.type==='palmera' ? '#064e3b' : '#6b7280'));
+  ctx.fillRect(o.x, o.y, o.w, o.h);
+  if(o.type === 'kiosko'){
+    ctx.fillStyle = '#fff'; ctx.font='600 12px sans-serif'; ctx.fillText('Tienda', o.x+6, o.y+o.h/2+4);
+  }
+}
+function drawPowerup(p){ ctx.beginPath(); ctx.fillStyle = p.kind==='coin' ? 'gold' : (p.kind==='shield'?'#60a5fa':'#a78bfa'); ctx.arc(p.x+p.w/2, p.y+p.h/2, p.w/2, 0, Math.PI*2); ctx.fill(); }
+
+/* draw player with skin + accessories */
+function drawPlayer(){
+  const skinPath = ASSETS.skins[state.character] || ASSETS.skins.gorra;
+  const img = skinCache[skinPath] || (skinCache[state.character] || null);
+  if(img && img.complete && img.naturalWidth !== 0){
+    try{ ctx.drawImage(img, player.x, player.y, player.size, player.size); }catch(e){ fallbackPlayer(); }
+  } else fallbackPlayer();
+
+  // accessories (hat, shirt, bag) are drawn as overlays (simple shapes) if equipped
+  const eq = state.inventory && state.inventory._equipped ? state.inventory._equipped : (state.inventory || {}).equipped;
+  // hat
+  if(eq && eq.hat){
+    ctx.fillStyle = eq.hat.color || 'gold';
+    ctx.fillRect(player.x + player.size*0.12, player.y - player.size*0.18, player.size*0.76, player.size*0.18);
+  }
+  // shirt (drawn at torso)
+  if(eq && eq.shirt){
+    ctx.fillStyle = eq.shirt.color || '#10b981';
+    ctx.fillRect(player.x + player.size*0.1, player.y + player.size*0.5, player.size*0.8, player.size*0.32);
+  }
+  // bag
+  if(eq && eq.bag){
+    ctx.fillStyle = eq.bag.color || '#a78bfa';
+    ctx.fillRect(player.x + player.size*0.75, player.y + player.size*0.32, player.size*0.28, player.size*0.28);
+  }
+}
+
+function fallbackPlayer(){
+  ctx.fillStyle = '#111827'; ctx.fillRect(player.x, player.y, player.size, player.size);
+  ctx.strokeStyle = 'gold'; ctx.lineWidth = 3; ctx.strokeRect(player.x, player.y, player.size, player.size);
+  ctx.fillStyle = 'gold'; ctx.font='700 12px sans-serif'; ctx.fillText('V', player.x + player.size*0.25, player.y + player.size*0.6);
+}
+
+function drawHUD(){
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(8,8,240,76);
+  ctx.fillStyle = 'gold'; ctx.font='700 16px sans-serif'; ctx.fillText('VÉRTIKA Runner', 16, 30);
+  ctx.fillStyle = '#fff'; ctx.font='600 14px sans-serif'; ctx.fillText(`Puntaje: ${state.score}`, 16, 52);
+  ctx.textAlign='right'; ctx.fillText(`Mejor: ${state.best}`, world.w-16, 28); ctx.fillText(`Monedas: ${state.coins}`, world.w-16, 52); ctx.textAlign='left';
+}
+
+function drawSplash(){
+  ctx.fillStyle = '#071428'; ctx.fillRect(0,0,world.w,world.h);
+  drawBackground();
+  ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='800 26px sans-serif'; ctx.fillText('VÉRTIKA Runner: Santa Marta', world.w/2, world.h*0.26);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font='400 14px sans-serif'; ctx.fillText('Pulsa ESPACIO o Iniciar para comenzar. M = silenciar • T = tienda', world.w/2, world.h*0.46);
+  ctx.fillStyle = 'gold'; ctx.fillRect(world.w/2 - 80, world.h*0.52, 160, 44); ctx.fillStyle = '#071427'; ctx.font='700 16px sans-serif'; ctx.fillText('¡JUGAR!', world.w/2, world.h*0.52+28);
+}
+
+/* -------------------------
+   Main loop
+   ------------------------- */
+function loop(){
+  const dt = 16.6667;
+  ctx.clearRect(0,0,world.w,world.h);
+  drawBackground();
+
+  // ground line
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth=2; ctx.moveTo(0, world.groundY+0.5); ctx.lineTo(world.w, world.groundY+0.5); ctx.stroke();
+
+  // spawn timer
+  world.timeToNextObs -= dt;
+  if(world.timeToNextObs <= 0){ spawnObstacleOrPowerup(); world.timeToNextObs = rand(...CONFIG.obstacleInterval); }
+
+  // obstacles
+  for(let i=world.obstacles.length-1;i>=0;i--){
+    const o = world.obstacles[i]; o.x -= world.speed;
+    drawObstacle(o);
+    if(!o.scored && o.x + o.w < player.x){ o.scored = true; state.score++; state.coins += 1; persistCoins(); if(state.score % CONFIG.speedIncreaseEvery === 0) world.speed += CONFIG.speedStep; missionProgressUpdate(o); }
+    if(o.x + o.w < -80) world.obstacles.splice(i,1);
+  }
+
+  // powerups
+  for(let i=world.powerups.length-1;i>=0;i--){
+    const p = world.powerups[i]; p.x -= world.speed;
+    drawPowerup(p);
+    if(rectsOverlap({x:player.x,y:player.y,size:player.size},{x:p.x,y:p.y,w:p.w,h:p.h})){ applyPowerup(p.kind); world.powerups.splice(i,1); }
+    if(p.x + p.w < -80) world.powerups.splice(i,1);
+  }
+
+  // physics
+  player.vy += CONFIG.gravity * (player.power==='heavy' ? 1.2 : 1);
+  player.y += player.vy;
+  if(player.y + player.size >= world.groundY){ player.y = world.groundY - player.size; player.vy = 0; if(!player.onGround) spawnDust(player.x + player.size*0.3, world.groundY); player.onGround = true; }
+
+  drawPlayer();
+
+  // particles
+  for(let i=world.particles.length-1;i>=0;i--){
+    const p = world.particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life -= 16;
+    ctx.globalAlpha = Math.max(0, p.life/700); ctx.fillStyle = 'gold'; ctx.fillRect(p.x,p.y,p.size,p.size); ctx.globalAlpha = 1;
+    if(p.life <= 0) world.particles.splice(i,1);
+  }
+
+  // collisions
+  for(const o of world.obstacles){
+    if(rectsOverlap({x:player.x,y:player.y,size:player.size},{x:o.x,y:o.y,w:o.w,h:o.h})){
+      if(player.power === 'shield'){ player.power = null; } else { finishGame(); return; }
+    }
+  }
+
+  // HUD updates
+  drawHUD();
+  hudRightEl.textContent = `Puntaje: ${state.score} • Mejor: ${state.best}`;
+  document.getElementById('coinCount').textContent = state.coins;
+
+  // level completion
+  if(!infiniteMode && missionReached()){
+    awardMission();
+    levelIndex = Math.min(levelIndex + 1, ASSETS.levels.length - 1);
+    showLevelBanner('Nivel completado! Avanzando a: ' + MISSIONS[levelIndex].name);
+    setTimeout(()=> startLevel(levelIndex), 1300);
+    return;
+  }
+
+  raf = requestAnimationFrame(loop);
+}
+
+/* mission helpers */
+function missionProgressUpdate(obstacle){
+  const m = MISSIONS[levelIndex];
+  if(m.desc.toLowerCase().includes('valla')){
+    if(obstacle.type === 'valla'){ missionProgress++; updateMissionUI(); }
+  } else { missionProgress++; updateMissionUI(); }
+}
+function updateMissionUI(){ const m = MISSIONS[levelIndex]; missionText.textContent = `${m.desc} (${missionProgress}/${m.target}) — Recompensa: ${m.reward}¢`; }
+function missionReached(){ return missionProgress >= MISSIONS[levelIndex].target; }
+function awardMission(){ const m = MISSIONS[levelIndex]; state.coins += m.reward; persistCoins(); alert(`¡Misión completada! Ganaste ${m.reward} Vertika Coins`); missionProgress = 0; updateMissionUI(); }
+
+/* end game */
+function finishGame(){
+  gameOver = true; cancelAnimationFrame(raf);
+  state.best = Math.max(state.best, state.score); localStorage.setItem('vertikaBest', String(state.best));
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0,0,world.w,world.h);
+  ctx.textAlign='center'; ctx.fillStyle = 'gold'; ctx.font='800 28px sans-serif'; ctx.fillText('¡GAME OVER!', world.w/2, world.h*0.35);
+  ctx.fillStyle = '#fff'; ctx.font='600 18px sans-serif'; ctx.fillText(`Puntaje: ${state.score}  |  Mejor: ${state.best}`, world.w/2, world.h*0.42);
+  ctx.fillStyle = 'gold'; ctx.fillRect(world.w/2 - 110, world.h*0.52, 220, 46);
+  ctx.fillStyle = '#071427'; ctx.font='700 16px sans-serif'; ctx.fillText('Reintentar (R / click)', world.w/2, world.h*0.52+28);
+  canvas.addEventListener('pointerdown', ()=>{ if(gameOver){ restart(); gameOver=false; } }, { once:true });
+}
+
+/* -------------------------
+   Store / Inventory / Equips
+   Accessories are drawn overlays (hat, shirt, bag).
+   ------------------------- */
+const STORE_ITEMS = [
+  {id:'tigre', label:'Tigre Samario', price:250, type:'skin', img:ASSETS.skins.tigre},
+  {id:'leon', label:'León Marino', price:300, type:'skin', img:ASSETS.skins.leon},
+  {id:'caballo', label:'Caballo', price:220, type:'skin', img:ASSETS.skins.caballo},
+  {id:'mono', label:'Mono', price:180, type:'skin', img:ASSETS.skins.mono},
+  {id:'hat_gold', label:'Gorra Dorada (sombrero)', price:120, type:'hat', metadata:{color:'#fbbf24'}},
+  {id:'shirt_green', label:'Camiseta Verde', price:90, type:'shirt', metadata:{color:'#10b981'}},
+  {id:'bag_purple', label:'Mochila Morada', price:140, type:'bag', metadata:{color:'#a78bfa'}}
+];
+
+function renderStore(){
+  storeGrid.innerHTML = '';
+  STORE_ITEMS.forEach(it=>{
+    const div = document.createElement('div'); div.className='shop-item';
+    div.innerHTML = `<div class="skin-preview"><img src="${it.img || ''}" style="max-width:100%;max-height:100%"/></div>
+      <div style="color:#cbd5e1">${it.label}</div>
+      <div style="display:flex;gap:6px"><div style="color:gold">${it.price}¢</div><div id="btn_${it.id}"></div></div>`;
+    storeGrid.appendChild(div);
+    const wrap = div.querySelector(`#btn_${it.id}`);
+    const btn = document.createElement('button');
+    if(state.inventory[it.id]){ btn.textContent = 'Equipar'; btn.className='btn-primary'; btn.onclick = ()=> equipStoreItem(it); }
+    else { btn.textContent = 'Comprar'; btn.className='btn-ghost'; btn.onclick = ()=> buyStoreItem(it); }
+    wrap.appendChild(btn);
+  });
+}
+function buyStoreItem(item){
+  if(state.coins < item.price) return alert('No tienes suficientes monedas');
+  state.coins -= item.price; persistCoins();
+  state.inventory[item.id] = true; localStorage.setItem('vertikaInv', JSON.stringify(state.inventory));
+  renderStore(); alert('Compraste: ' + item.label);
+}
+function equipStoreItem(item){
+  if(item.type === 'skin'){ state.character = item.id; localStorage.setItem('vertikaChar', item.id); charSelect.value = item.id; }
+  else {
+    // set equipped accessory
+    if(!state.inventory._equipped) state.inventory._equipped = {};
+    if(item.type === 'hat') state.inventory._equipped.hat = {id:item.id,color:item.metadata.color};
+    if(item.type === 'shirt') state.inventory._equipped.shirt = {id:item.id,color:item.metadata.color};
+    if(item.type === 'bag') state.inventory._equipped.bag = {id:item.id,color:item.metadata.color};
+    localStorage.setItem('vertikaInv', JSON.stringify(state.inventory));
+  }
+  alert('Equipado: ' + item.label);
+}
+
+/* -------------------------
+   Accounts (local storage)
+   ------------------------- */
+const ACC_KEY = 'vertika_accounts';
+function loadAccounts(){ return JSON.parse(localStorage.getItem(ACC_KEY) || '{}'); }
+function saveAccounts(obj){ localStorage.setItem(ACC_KEY, JSON.stringify(obj)); }
+
+document.getElementById('btnRegister').addEventListener('click', ()=>{
+  const user = document.getElementById('regUser').value.trim();
+  const pass = document.getElementById('regPass').value;
+  if(!user || !pass) return alert('Usuario y contraseña requeridos');
+  const acc = loadAccounts();
+  if(acc[user]) return alert('Usuario ya existe');
+  acc[user] = { pass, coins: state.coins, inventory: state.inventory, best: state.best, char: state.character };
+  saveAccounts(acc); alert('Cuenta creada. Ya puedes iniciar sesión');
+});
+document.getElementById('btnLogin').addEventListener('click', ()=>{
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const acc = loadAccounts();
+  if(!acc[user] || acc[user].pass !== pass) return alert('Usuario o contraseña incorrectos');
+  state.user = user;
+  state.coins = acc[user].coins || state.coins;
+  state.inventory = acc[user].inventory || state.inventory;
+  state.best = acc[user].best || state.best;
+  state.character = acc[user].char || state.character;
+  persistCoins(); localStorage.setItem('vertikaInv', JSON.stringify(state.inventory)); localStorage.setItem('vertikaChar', state.character); localStorage.setItem('vertikaUser', JSON.stringify(state.user));
+  alert('Sesión iniciada: ' + user);
+  accountModal.style.display = 'none';
+  renderStore();
+});
+document.getElementById('btnExport').addEventListener('click', ()=>{
+  if(!state.user) return alert('Inicia sesión para exportar tu perfil');
+  const acc = loadAccounts()[state.user];
+  if(!acc) return alert('Cuenta no encontrada');
+  const data = { user: state.user, account: acc };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `${state.user}_vertika_profile.json`; a.click();
+  URL.revokeObjectURL(url);
+});
+inputImport.addEventListener('change', (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=> {
+    try{
+      const data = JSON.parse(reader.result);
+      if(data && data.user && data.account){
+        const acc = loadAccounts(); acc[data.user] = data.account; saveAccounts(acc);
+        alert('Perfil importado. Puedes iniciar sesión con ' + data.user);
+      } else alert('Archivo inválido');
+    }catch(err){ alert('Error leyendo archivo'); }
+  };
+  reader.readAsText(f);
+});
+
+/* open/close modals */
+openStoreBtn.addEventListener('click', ()=>{ renderStore(); storeModal.style.display='flex'; });
+document.getElementById('closeStoreBtn').addEventListener('click', ()=>{ storeModal.style.display='none'; });
+btnOpenAccount.addEventListener('click', ()=>{ accountModal.style.display='flex'; });
+document.getElementById('closeAccountBtn').addEventListener('click', ()=>{ accountModal.style.display='none'; });
+
+charSelect.addEventListener('change', (e)=>{ const id=e.target.value; if(state.inventory[id] || id==='gorra'){ state.character = id; localStorage.setItem('vertikaChar', id); } else { alert('Compra primero esa skin'); charSelect.value = state.character; } });
+
+/* mute */
+muteBtn.addEventListener('click', toggleMute);
+function toggleMute(){ muted = !muted; muteBtn.textContent = muted ? 'Desmutear' : 'Silenciar'; if(!muted) playTone(220,0.04); }
+
+/* -------------------------
+   Helpers, init y startLevel
+   ------------------------- */
+function rand(a,b){ return Math.random()*(b-a)+a; }
+function playTone(freq, duration=0.08){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.type='sine'; o.frequency.value=freq; g.gain.value=0.06;
+    o.connect(g); g.connect(ctx.destination); o.start(); setTimeout(()=>{ o.stop(); ctx.close(); }, duration*1000);
+  }catch(e){}
+}
+
+function init(){
+  document.getElementById('coinCount').textContent = state.coins;
+  document.getElementById('storeCoins').textContent = state.coins;
+  document.getElementById('levelLabel').textContent = (levelIndex+1) + ' - ' + MISSIONS[levelIndex].name;
+  updateMissionUI();
+  drawSplash();
+}
+init();
+
+function startLevel(idx){
+  missionProgress = 0; updateMissionUI();
+  levelIndex = idx || 0;
+  levelLabel.textContent = (levelIndex+1) + ' - ' + MISSIONS[levelIndex].name;
+  world.obstacles=[]; world.powerups=[]; world.particles=[]; world.timeToNextObs = rand(...CONFIG.obstacleInterval);
+  world.speed = CONFIG.baseSpeed + (levelIndex*0.5);
+  state.score = 0; player.vy = 0; player.onGround = true; player.y = world.groundY - player.size;
+  started=true; gameOver=false;
+  cancelAnimationFrame(raf); loop();
+}
+
+/* mission UI */
+function updateMissionUI(){ const m = MISSIONS[levelIndex]; missionText.textContent = `${m.desc} (${missionProgress}/${m.target}) — Recompensa: ${m.reward}¢`; }
+
+/* show small banner */
+function showLevelBanner(text){
+  ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0, world.h*0.2, world.w, world.h*0.2);
+  ctx.fillStyle='gold'; ctx.font='800 20px sans-serif'; ctx.textAlign='center'; ctx.fillText(text, world.w/2, world.h*0.3);
+}
+
+/* reached goal helper */
+function missionReached(){ return missionProgress >= MISSIONS[levelIndex].target; }
+
+/* award mission called in loop when missionReached true */
+function awardMission(){ const m = MISSIONS[levelIndex]; state.coins += m.reward; persistCoins(); alert(`¡Misión completada! Ganaste ${m.reward} Vertika Coins`); missionProgress = 0; updateMissionUI(); }
+
+/* finish up */
+function restart(){ startLevel(levelIndex); }
+
+/* initial click to start first level on canvas */
+canvas.addEventListener('click', ()=>{ if(!started) startLevel(0); });
+
+/* save data before unloading */
+window.addEventListener('beforeunload', ()=>{ persistCoins(); localStorage.setItem('vertikaInv', JSON.stringify(state.inventory)); localStorage.setItem('vertikaChar', state.character); localStorage.setItem('vertikaDiff', state.difficulty); if(state.user){ const acc = loadAccounts(); acc[state.user] = { pass: acc[state.user]?.pass || '', coins: state.coins, inventory: state.inventory, best: state.best, char: state.character }; saveAccounts(acc); } });
+
+/* expose startLevel for UI buttons (levels are 0-based inside) */
+document.getElementById('btnStart').addEventListener('click', ()=>startLevel(levelIndex));
+document.getElementById('btnInfinite').addEventListener('click', ()=>{ infiniteMode = !infiniteMode; document.getElementById('btnInfinite').textContent = infiniteMode ? 'Infinito: ON' : 'Modo Infinito'; startLevel(levelIndex); });
+
+/* small helper to change level externally (not shown in UI) */
+window.changeLevel = (n)=>{ levelIndex = Math.max(0, Math.min(4, n)); startLevel(levelIndex); };
+
+</script>
+</body>
+</html>
